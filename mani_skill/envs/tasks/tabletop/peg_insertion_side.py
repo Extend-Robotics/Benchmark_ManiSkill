@@ -66,7 +66,7 @@ class PegInsertionSideEnv(BaseEnv):
     _sample_video_link = "https://github.com/haosulab/ManiSkill/raw/main/figures/environment_demos/PegInsertionSide-v1_rt.mp4"
     SUPPORTED_ROBOTS = ["panda_wristcam"]
     agent: Union[PandaWristCam]
-    _clearance = 0.003
+    _clearance = 0.005
 
     def __init__(
         self,
@@ -95,12 +95,14 @@ class PegInsertionSideEnv(BaseEnv):
 
     @property
     def _default_sensor_configs(self):
-        pose = sapien_utils.look_at([0, -0.3, 0.2], [0, 0, 0.1])
-        return [CameraConfig("base_camera", pose, 128, 128, np.pi / 2, 0.01, 100)]
+        # pose = sapien_utils.look_at([0, -0.3, 0.2], [0, 0, 0.1])
+        # return [CameraConfig("base_camera", pose, 128, 128, np.pi / 2, 0.01, 100)]
+        pose = sapien_utils.look_at([1, -0.5, 0.8], [0.05, -0.1, 0.1])
+        return [CameraConfig("base_camera", pose, 512, 512, 1, 0.01, 100)]
 
     @property
     def _default_human_render_camera_configs(self):
-        pose = sapien_utils.look_at([0.5, -0.5, 0.8], [0.05, -0.1, 0.4])
+        pose = sapien_utils.look_at([1, -0.5, 0.8], [0.05, -0.1, 0.1])
         return CameraConfig("render_camera", pose, 512, 512, 1, 0.01, 100)
 
     def _load_agent(self, options: dict):
@@ -111,12 +113,12 @@ class PegInsertionSideEnv(BaseEnv):
             self.table_scene = TableSceneBuilder(self)
             self.table_scene.build()
 
-            lengths = self._batched_episode_rng.uniform(0.085, 0.125)
-            radii = self._batched_episode_rng.uniform(0.015, 0.025)
+            lengths = self._batched_episode_rng.uniform(0.1, 0.1)
+            radii = self._batched_episode_rng.uniform(0.02, 0.02)
             centers = (
                 0.5
                 * (lengths - radii)[:, None]
-                * self._batched_episode_rng.uniform(-1, 1, size=(2,))
+                * self._batched_episode_rng.uniform(0, 0, size=(2,))
             )
 
             # save some useful values for use later
@@ -207,13 +209,13 @@ class PegInsertionSideEnv(BaseEnv):
                 self.device,
                 lock_x=True,
                 lock_y=True,
-                bounds=(np.pi / 2 - np.pi / 3, np.pi / 2 + np.pi / 3),
+                bounds=(np.pi / 2, np.pi / 2),
             )
             self.peg.set_pose(Pose.create_from_pq(pos, quat))
 
             xy = randomization.uniform(
-                low=torch.tensor([-0.05, 0.2]),
-                high=torch.tensor([0.05, 0.4]),
+                low=torch.tensor([0, 0.3]),
+                high=torch.tensor([0, 0.3]),
                 size=(b, 2),
             )
             pos = torch.zeros((b, 3))
@@ -224,7 +226,7 @@ class PegInsertionSideEnv(BaseEnv):
                 self.device,
                 lock_x=True,
                 lock_y=True,
-                bounds=(np.pi / 2 - np.pi / 8, np.pi / 2 + np.pi / 8),
+                bounds=(np.pi / 2, np.pi / 2 ),
             )
             self.box.set_pose(Pose.create_from_pq(pos, quat))
 
@@ -358,3 +360,4 @@ class PegInsertionSideEnv(BaseEnv):
         self, obs: Any, action: torch.Tensor, info: Dict
     ):
         return self.compute_dense_reward(obs, action, info) / 10
+
