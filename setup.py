@@ -49,6 +49,10 @@ def get_dependencies():
         "huggingface_hub",  # we use HF to version control some assets/datasets more easily
         "sapien>=3.0.0;platform_system=='Linux'",
         "sapien>=3.0.0.b1;platform_system=='Windows'",
+        "boto3",
+        "botocore",
+        "boto3-stubs[s3]",
+        "lerobot @ git+https://github.com/Extend-Robotics/lerobot.git@main"
     ]
     # NOTE (stao): until sapien is uploaded to pypi with mac support, users need to install manually below as so
     # f"sapien @ https://github.com/haosulab/SAPIEN/releases/download/nightly/sapien-3.0.0.dev20250303+291f6a77-{python_version}-{python_version}-macosx_12_0_universal2.whl;platform_system=='Darwin'"
@@ -89,15 +93,16 @@ def main(argv):
         description="ManiSkill3: A Unified Benchmark for Generalizable Manipulation Skills",
         long_description=long_description,
         long_description_content_type="text/markdown",
-        author="ManiSkill contributors",
-        url="https://github.com/haosulab/ManiSkill",
+        author="Shiyao Zhao",
+        url="https://github.com/Extend-Robotics/Benchmark_ManiSkill.git",
         packages=find_packages(include=["mani_skill*"]),
         python_requires=">=3.9",
         setup_requires=["setuptools>=62.3.0"],
         install_requires=get_dependencies(),
+        dependency_links=["git+https://github.com/Extend-Robotics/lerobot.git#egg=lerobot"],
         # Glob patterns do not automatically match dotfiles
         package_data={
-            "mani_skill": ["assets/**", "envs/**/*", "utils/**/*"],
+            "mani_skill": ["assets/**", "envs/**/*", "utils/**/*", "extend_robotics_datasets/**/*"],
             "warp_maniskill.warp": ["native/*", "native/nanovdb/*"],
         },
         extras_require={
