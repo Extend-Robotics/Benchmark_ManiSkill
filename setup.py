@@ -52,7 +52,7 @@ def get_dependencies():
         "boto3",
         "botocore",
         "boto3-stubs[s3]",
-        "lerobot @ git+https://github.com/Extend-Robotics/lerobot.git@main"
+        "lerobot @ git+https://github.com/Extend-Robotics/lerobot.git@maniskill_conversion"
     ]
     # NOTE (stao): until sapien is uploaded to pypi with mac support, users need to install manually below as so
     # f"sapien @ https://github.com/haosulab/SAPIEN/releases/download/nightly/sapien-3.0.0.dev20250303+291f6a77-{python_version}-{python_version}-macosx_12_0_universal2.whl;platform_system=='Darwin'"
