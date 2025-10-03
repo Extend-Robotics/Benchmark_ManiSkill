@@ -8,9 +8,11 @@ from pathlib import Path
 import cv2
 import h5py
 import torch
+from lerobot.constants import HF_LEROBOT_HOME
+from tqdm import tqdm
 
-from lerobot.common.datasets.lerobot_dataset import LEROBOT_HOME
-from mani_skill.extend_robotics_datasets.extend_hdf5.extend_to_lerobot import ExtendRoboticsDataset
+from mani_skill.extend_robotics_datasets.extend_hdf5.extend_to_lerobot import \
+    ExtendRoboticsDataset
 
 
 class ExtendHDF5Extractor:
@@ -140,7 +142,7 @@ class ExtendHDF5Extractor:
                         )
                         if rgb_mode:
                             image = image[:, :, [2, 1, 0]]
-                        frame[feature_id] = torch.from_numpy(image.transpose(2, 0, 1))
+                        frame[feature_id] = torch.from_numpy(image)
                     elif "success" in feature_id:
                         value = bool(file[feature_name_hd5][frame_idx])  # Ensure scalar bool
                         frame[feature_id] = torch.tensor([value], dtype=torch.bool) 
@@ -208,7 +210,7 @@ class ExtendHDF5Extractor:
                         "names": [
                             "height",
                             "width",
-                            "channel",
+                            "channels",
                         ],
                     }
                 elif "images_depth" in topic.split("/"):
@@ -244,7 +246,6 @@ class ExtendHDF5Extractor:
                             f"{topic.split('/')[-1]}_{k}" for k in range(topic_shape[0])
                         ],
                     }
-                   
         # Return the defined features
         return features
 
@@ -294,6 +295,7 @@ class DatasetConverter:
         image_compressed: bool = True,
         image_writer_processes: int = 0,
         image_writer_threads: int = 0,
+        batch_encoding_size: int = 1,
     ):
         self.raw_path = raw_path if isinstance(raw_path, Path) else Path(raw_path)
         self.dataset_repo_id = dataset_repo_id
@@ -305,17 +307,9 @@ class DatasetConverter:
         self.image_writer_processes = image_writer_processes
         self.encode_as_videos = encode_as_videos
         self.use_depth_images = use_depth_images
+        self.batch_encoding_size = batch_encoding_size
 
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self.logger.setLevel(logging.INFO)
-
-        # Add console handler
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter("%(asctime)s - [%(name)s] - %(message)s")
-        console_handler.setFormatter(formatter)
-        self.logger.addHandler(console_handler)
-
+        self.logger = self.get_logger(name=self.__class__.__name__)
         self.logger.info(f"{'-'*10} Extend HDF5 -> Lerobot Converter {'-'*10}")
         self.logger.info(f"Processing Aloha HDF5 dataset from {self.raw_path}")
         self.logger.info(f"Dataset will be stored in {self.dataset_repo_id}")
@@ -328,7 +322,8 @@ class DatasetConverter:
 
         self.episode_list = sorted(
             [
-                file for file in self.raw_path.glob("episode_*.hdf5")
+                file
+                for file in self.raw_path.glob("episode_*.hdf5")
                 if ("compressed" in file.name) == self.image_compressed
             ]
         )
@@ -341,6 +336,17 @@ class DatasetConverter:
             encode_as_video=self.encode_as_videos,
             use_depth_images=use_depth_images,
         )
+
+    @staticmethod
+    def get_logger(name: str, level=logging.INFO):
+        logger = logging.getLogger(name)
+        logger.setLevel(level)
+        if not logger.hasHandlers():
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter("%(asctime)s - [%(name)s] - %(message)s")
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+        return logger
 
     def extract_episode(self, episode_path, task_description: str = ""):
         """
@@ -356,12 +362,18 @@ class DatasetConverter:
         None
         """
 
-        for frame in ExtendHDF5Extractor.extract_episode_frames(
-            episode_path, self.features, self.image_compressed, rgb_mode=self.rgb_mode
+        for frame in tqdm(
+            ExtendHDF5Extractor.extract_episode_frames(
+                episode_path,
+                self.features,
+                self.image_compressed,
+                rgb_mode=self.rgb_mode,
+            ),
+            desc=f"Extracting frames from episode: {episode_path}",
         ):
-            self.dataset.add_frame(frame)
+            self.dataset.add_frame(frame, task=task_description)
         self.logger.info(f"Saving Episode with Description: {task_description} ...")
-        self.dataset.save_episode(task=task_description)
+        self.dataset.save_episode()
 
     def extract_episodes(self, episode_description: str = ""):
         """
@@ -399,8 +411,8 @@ class DatasetConverter:
         """
 
         # Clean the cache if the dataset already exists
-        if os.path.exists(LEROBOT_HOME / self.dataset_repo_id):
-            shutil.rmtree(LEROBOT_HOME / self.dataset_repo_id)
+        if os.path.exists(HF_LEROBOT_HOME / self.dataset_repo_id):
+            shutil.rmtree(HF_LEROBOT_HOME / self.dataset_repo_id)
         self.dataset = ExtendRoboticsDataset.create(
             repo_id=self.dataset_repo_id,
             fps=self.fps,
@@ -409,6 +421,7 @@ class DatasetConverter:
             image_writer_threads=self.image_writer_threads,
             image_writer_processes=self.image_writer_processes,
             use_depth_images=self.use_depth_images,
+            batch_encoding_size=self.batch_encoding_size,
         )
 
         return self.dataset
